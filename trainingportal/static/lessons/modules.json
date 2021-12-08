@@ -1,18 +1,4 @@
 {
-    "securityCodeReviewMaster":{
-        "name":"Security Code Review Ninja",
-        "summary":"Integrating security into code review",
-        "description":"Code review is, hopefully, part of regular development practices for any organization. Adding security elements to code review is the most effective measure in preventing vulnerabilities, even before the first commit.",
-        "description2":"Includes 6 lessons. Estimated duration 15 minutes.",
-        "skipMasterSalt":true,
-        "badgeInfo":{
-            "line1":"Security",
-            "line2":"Code Review",
-            "line3":"Ninja",
-            "bg":"purple"
-        },
-        "requiredModules":[]
-    },
     "blackBelt":{
         "name":"Black Belt",
         "summary":"Common software security flaws",
@@ -36,18 +22,6 @@
             "line3":"Black Belt",
             "bg":"darkred"
         },
-        "requiredModules":["blackBelt"]
-    },
-    "redTeam":{
-        "name":"Red Team",
-        "summary":"Pen-testing tools and techniques",
-        "description":"Learn about scanning, exploitation and persistance. Leverage vulnerabilities found in a cloud container application and perform lateral movement to cloud account resources.",
-        "requiredModules":["blackBelt"]
-    },
-    "blueTeam":{
-        "name":"Blue Team",
-        "summary":"Security controls and security engineering techniques",
-        "description":"Apply security controls to defend against common vulnerabilities and identify sensitive data in production applications.",
         "requiredModules":["blackBelt"]
     }
 }

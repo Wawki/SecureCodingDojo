@@ -34,7 +34,9 @@ const report = require(path.join(__dirname, 'report'));
 var mainHtml = fs.readFileSync(path.join(__dirname, 'static/main.html'),'utf8');
 const badge = require(path.join(__dirname, 'badge'));
 var badgeHtml = fs.readFileSync(path.join(__dirname, 'static/badge.html'),'utf8');
-
+var mainHtml_instructor = fs.readFileSync(path.join(__dirname, 'static/main_instructor.html'),'utf8');
+var forbidden_html = fs.readFileSync(path.join(__dirname, 'static/forbidden.html'),'utf8');
+var sol_disabled_html = fs.readFileSync(path.join(__dirname, 'static/sol_disabled.html'),'utf8');
 
 
 //INIT
@@ -102,11 +104,7 @@ app.get("/public/privacy",(req,res) => {
 
 app.get("/public/providers",(req,res) => {
   var providers = [];
-  if("googleClientId" in config) providers.push({"name":"Google","url":"/public/provider/google"});
-  if("slackClientId" in config) providers.push({"name":"Slack","url":"/public/provider/slack"});
-  if("samlCert" in config) providers.push({"name":"ADFS SAML","url":"/public/provider/saml"});
   if("localUsersPath" in config) providers.push({"name":"Local","url":"/public/provider/local"});
-  if("ldapServer" in config) providers.push({"name":"LDAP","url":"/public/provider/ldap"});
 
   res.send(providers);
 });
@@ -114,11 +112,7 @@ app.get("/public/providers",(req,res) => {
 app.get('/public/provider/:provider', (req,res) => {
   //invalidate any active session
   var redirect = '';
-  if(req.params.provider == 'slack') redirect = '/public/slack';
-  else if(req.params.provider == 'google') redirect = '/public/google';
-  else if(req.params.provider == 'saml') redirect = '/public/saml';
-  else if(req.params.provider == 'local') redirect = '/public/locallogin.html';
-  else if(req.params.provider == 'ldap') redirect = '/public/ldaplogin.html';
+  if(req.params.provider == 'local') redirect = '/public/locallogin.html';
   auth.logoutAndKillSession(req, res, redirect);
 });
 
@@ -128,49 +122,28 @@ app.get("/public/captcha.png", auth.getCaptcha);
 app.post("/public/register", auth.registerLocalUser);
 
 //this one is an authenticated request because is under /api
-app.post("/api/localUser/updateUser", auth.updateLocalUser);
-
-
-
-app.get('/public/google',
-  passport.authenticate('google', { scope: 
-  	[ 'https://www.googleapis.com/auth/userinfo.email', 
-      'https://www.googleapis.com/auth/userinfo.profile'] }
-));
-
-app.get( '/public/google/callback', passport.authenticate( 'google', { 
-		successRedirect: '/main',
-		failureRedirect: '/public/authFail.html'
-}));
-
-
-// path for slack auth
-app.get('/public/slack', passport.authenticate('slack'));
- 
-// OAuth callback url 
-app.get( '/public/slack/callback', passport.authenticate( 'slack', { 
-		successRedirect: '/main',
-		failureRedirect: '/public/authFail.html'
-}));
-
-// path for saml auth
-app.get('/public/saml', (req, res) => {
-  res.redirect(config.samlEntryPoint);
-});
- 
-// saml callback url 
-app.post( '/public/saml/callback', passport.authenticate( 'saml', { 
-		successRedirect: '/main',
-		failureRedirect: '/public/authFail.html'
-}));
- 
+app.post("/api/localUser/updateUser", auth.updateLocalUser); 
 
 app.post('/public/locallogin', [
   auth.checkCaptchaOnLogin,
   passport.authenticate('local', { failureRedirect: '/public/authFail.html' })
 ],
 function(req, res) {
-  res.redirect('/main');
+  var instructor_found=0;
+  //if instructor --> redirect to his dashboard
+  db.fetchInstructors(null, function(users){
+    for (let i = 0; i < users.length; i++) {
+      if ("Local_"+ req.body.username===users[i].accountId)
+      {
+        //redirect to instructor dashboard 
+        res.redirect('/main_instructor');
+        instructor_found=1;
+      }
+    }
+    //redirect to student dashboard 
+    if(instructor_found==0)
+      res.redirect('/main');
+  });
 });
 
 app.post('/public/ldaplogin', passport.authenticate('ldapauth', { failureRedirect: '/public/authFail.html' }),
@@ -222,10 +195,25 @@ app.get("/public/badge/:code/image.png",async(req,res) => {
 app.get('/logout', auth.logout);
 
 app.get('/main', (req, res) => {
-  let updatedHtml = auth.addCsrfToken(req, mainHtml);
-  res.send(updatedHtml);
+
+  if(req.user.role=="student"){
+    let updatedHtml = auth.addCsrfToken(req, mainHtml);
+    res.send(updatedHtml);
+  }
+  else
+    res.send(forbidden_html);
+  ;
 });
 
+app.get('/main_instructor', (req, res) => {
+  if(req.user.role=="instructor"){
+    let updatedHtml = auth.addCsrfToken(req, mainHtml_instructor);
+    res.send(updatedHtml);
+  }
+  else
+    res.send(forbidden_html);
+  ;
+});
 
 app.get('/challenges/:moduleId', async (req, res) => {
   var moduleId = req.params.moduleId;
@@ -273,8 +261,24 @@ app.get('/challenges/solutions/:challengeId', (req,res) => {
   if(util.isNullOrUndefined(challengeId) || util.isAlphanumericOrUnderscore(challengeId) === false){
     return util.apiResponse(req, res, 400, "Invalid challenge id."); 
   }
-  var solutionHtml = challenges.getSolution(challengeId);
-  res.send(solutionHtml);
+
+  db.checkUserSolutionDisabled(req.user,
+    function(){
+      util.apiResponse(req, res, 500, "Failed to check if solutions are enabled for this user");
+    },async (results) =>{
+      //console.log(results[0]);
+      if(results[0].solution_disabled=="disabled"){
+        //console.log("here 1");
+        res.send(sol_disabled_html);
+        //util.apiResponse(req, res, 400, "Solutions are disabled for this student by his instructor");
+      }
+      else{
+        //console.log("here 2");
+        var solutionHtml = challenges.getSolution(challengeId);
+        res.send(solutionHtml);
+      }
+    }
+  );
 });
 
 
@@ -308,6 +312,11 @@ app.get('/api/user/badges', async (req, res) => {
     badge.code = challenges.getBadgeCode(badge,req.user);
   }
   res.send(badges);
+});
+
+app.get('/api/team/scores', async (req, res) => {
+  let passedChallenges =  await db.getTeamMembersByScore(req.user.teamId);
+  res.send(passedChallenges);
 });
 
 
@@ -378,6 +387,13 @@ app.get('/api/teams',  (req, res) => {
    });
 });
 
+//get the available instructor
+app.get('/api/instructors',  (req, res) => {
+  db.fetchInstructors(null,function(instructorsList){
+    res.send(instructorsList);
+  });
+});
+
 //get the team members
 app.get('/api/teams/:teamId/badges', async (req, res) => {
   let teamId = req.params.teamId;
@@ -431,6 +447,23 @@ app.get('/api/activity',  (req, res) => {
   });
 });
 
+//get instructor students linked with
+app.get('/api/students', async (req, res) => {
+  var instructor_username = req.query.user_accountId;
+  if(instructor_username !== "" && !validator.matches(instructor_username,/^[a-z0-9\s_'\-]+$/i)){
+    return util.apiResponse(req,res,400,"Invalid instructor_username");
+  }
+  db.fetchMystudents(null,instructor_username,null,async function(studentsList){
+    //console.log(studentsList.length)
+    var don_chan;
+    for (let i = 0; i < studentsList.length; i++) {
+      don_chan= await challenges.getUserCurrentLevelForModule(studentsList[i], "blackBelt");
+      studentsList[i]["currentLevel"]=don_chan;
+    }
+    //studentsList.userLevelForModule = challenges.getUserCurrentLevelForModule(studentsList, "blackBelt");
+    res.send(studentsList);
+  });
+});
 
 //get the activity
 app.get('/api/activity/heartbeat',  (req, res) => {
@@ -503,8 +536,67 @@ app.post('/api/teams', auth.ensureApiAuth, (req, res) => {
       });
 });
 
+//link the student to instructor
+app.post('/api/instructor_link', auth.ensureApiAuth, (req, res) => {
+  var instructorUsername = req.body.instructorId;
+  var user=req.user;
+  user.instructor_UN=instructorUsername
 
+  if(util.isNullOrUndefined(instructorUsername) || validator.matches(instructorUsername,/^[a-z0-9\s_'\-]+$/i)==false){
+     return util.apiResponse(req, res, 400, "Instructor user name must be alphanumeric or name punctuation.");
+  }
+  //check if exist and is instructor
+  db.fetchInstructors(null, function(users){  
+    for (let i = 0; i < users.length; i++) {
+      if ("Local_"+instructorUsername===users[i].accountId)
+      {      
+        //link the student to the instructor
+        db.getPromise(db.linkInstructorUserName,user);
+        return util.apiResponse(req, res, 200, "Instructor Linked.");   
+      }
+    }
+    //username not found
+    return util.apiResponse(req, res, 400, "Instructor Username NOT FOUND.");
+  });
+});
 
+app.post('/api/student_update', auth.ensureApiAuth, (req, res) => {
+  var studentUpdates = req.body.studentUpdates;
+  var user=req.user;
+  studentUpdates.instructor_UN=user.accountId.replace('Local_','')
+  //validate the inputs from the instructor
+    //validation goes here
+  if(validator.matches(studentUpdates.solution_disabled,/^[a-zA-Z\s]+$/i)==false){
+     return util.apiResponse(req, res, 400, "Invalid Request.Error 1000");
+  }
+  if(validator.isNumeric(studentUpdates.max_progress)==false){
+    return util.apiResponse(req, res, 400, "Invalid Request. Error 1001");
+  }
+  //limiting the inputs from instructor
+  if(studentUpdates.max_progress<1)
+    studentUpdates.max_progress=1;
+    
+  if(studentUpdates.max_progress>7)
+    studentUpdates.max_progress=7;  
+
+  if(studentUpdates.solution_disabled!='disabled' && studentUpdates.solution_disabled !='enabled'){
+    studentUpdates.solution_disabled='disabled';
+  }
+
+  //check if the req is from the instructor account
+  db.fetchInstructors(null, function(users){  
+    for (let i = 0; i < users.length; i++) {
+      if (req.user.accountId===users[i].accountId)
+      {          
+        //update the student infos
+        db.getPromise(db.updateStudent,studentUpdates);
+        return util.apiResponse(req, res, 200, "Updated Seccesfully");   
+      }
+    }
+    //username not found
+    return util.apiResponse(req, res, 400, "Instructor Username NOT FOUND.");
+  });
+});
 
 //allows the user to delete a team that they own
 app.delete('/api/user/team',  (req, res) => {

@@ -72,7 +72,7 @@ describe('challengeTests', function() {
     before(async () => {
         await db.getPromise(db.deleteUser,"levelUpUser");
         await db.getPromise(db.deleteUser,"apiChallengeCodeUser");
-        await db.getPromise(db.insertUser,{accountId:"levelUpUser",familyName:"LastLevelUp", givenName:"FirstLevelUp"});
+        await db.getPromise(db.insertUser,{accountId:"levelUpUser",familyName:"LastLevelUp", givenName:"FirstLevelUp", role: "student"});
         let promise = db.getPromise(db.getUser,"levelUpUser");
         user = await promise;
         return promise;
@@ -90,20 +90,20 @@ describe('challengeTests', function() {
 
 
   
-    describe('#verifyModuleCompletion() - issue badge', async () => {
+    /*describe('#verifyModuleCompletion() - issue badge', async () => {
         var user = null;
         before(async ()=>{
             //cleanup
             await db.getConn().queryPromise("DELETE FROM users WHERE accountId='secondDegreeUser'");
             await db.getPromise(db.insertUser,{accountId:"secondDegreeUser",familyName:"LastLevelUp", givenName:"FirstLevelUp"});
             user = await db.getPromise(db.getUser,"secondDegreeUser");
-            await db.getPromise(db.insertChallengeEntry,[user.id, "owasp2017misconfig"]);
-            await db.getPromise(db.insertChallengeEntry,[user.id, "owasp2017sensitive"]);
-            await db.getPromise(db.insertChallengeEntry,[user.id, "owasp2017brokenauth"]);
-            await db.getPromise(db.insertChallengeEntry,[user.id, "owasp2017xss"]);
-            await db.getPromise(db.insertChallengeEntry,[user.id, "owasp2017injection"]);
-            await db.getPromise(db.insertChallengeEntry,[user.id, "owasp2017xxe"]);
-            return db.getPromise(db.insertChallengeEntry,[user.id, "owasp2017deserialization"]);
+            await db.getPromise(db.insertChallengeEntry,[user.id, "owasp2017misconfig", 100]);
+            await db.getPromise(db.insertChallengeEntry,[user.id, "owasp2017sensitive", 100]);
+            await db.getPromise(db.insertChallengeEntry,[user.id, "owasp2017brokenauth", 100]);
+            await db.getPromise(db.insertChallengeEntry,[user.id, "owasp2017xss", 100]);
+            await db.getPromise(db.insertChallengeEntry,[user.id, "owasp2017injection", 100]);
+            await db.getPromise(db.insertChallengeEntry,[user.id, "owasp2017xxe", 100]);
+            return db.getPromise(db.insertChallengeEntry,[user.id, "owasp2017deserialization", 100]);
 
         });
 
@@ -126,14 +126,14 @@ describe('challengeTests', function() {
             await db.getConn().queryPromise("DELETE FROM badges WHERE userId=?",[user.id]);
             return db.getConn().queryPromise("DELETE FROM challengeEntries WHERE userId=?",[user.id]);
         });
-    });
+    });*/
 
     describe('#getUserLevelForModule()', async () => {
         var user = null;
         before(async ()=>{
             //cleanup
             await db.getConn().queryPromise("DELETE FROM users WHERE accountId='deleteMe_getUserLevelForModule'");
-            await db.getPromise(db.insertUser,{accountId:"deleteMe_getUserLevelForModule",familyName:"Last", givenName:"First"});
+            await db.getPromise(db.insertUser,{accountId:"deleteMe_getUserLevelForModule",familyName:"Last", givenName:"First", role:"student"});
             user = await db.getPromise(db.getUser,"deleteMe_getUserLevelForModule");
             await db.getPromise(db.insertChallengeEntry,[user.id, "cwe306"]);
             await db.getPromise(db.insertChallengeEntry,[user.id, "cwe807"]);
@@ -205,7 +205,7 @@ describe('challengeTests', function() {
         before(async ()=>{
             //cleanup
             await db.getConn().queryPromise("DELETE FROM users WHERE accountId='deleteMe_apiChallengeCode'");
-            await db.getPromise(db.insertUser,{accountId:"deleteMe_apiChallengeCode",familyName:"Last", givenName:"First"});
+            await db.getPromise(db.insertUser,{accountId:"deleteMe_apiChallengeCode",familyName:"Last", givenName:"First", role: "student"});
             let promise = db.getPromise(db.getUser,"deleteMe_apiChallengeCode");
             user = await promise;
             return promise;
@@ -342,6 +342,8 @@ describe('challengeTests', function() {
             await challenges.apiChallengeCode(mockRequest);
             let promise = challenges.getUserLevelForModule(user,"blackBelt");
             let level = await promise;
+            util.log("ici");
+            util.log(level);
             assert.equal(level,1,"Wrong level for module");
             return promise;
         });

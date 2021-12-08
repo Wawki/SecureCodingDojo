@@ -1,6 +1,7 @@
 const path = require('path');
 const db = require('../db');
 const challenges = require('../challenges');
+const util = require('../util');
 
 
 var passChallenges = async (moduleId, user, except) => {

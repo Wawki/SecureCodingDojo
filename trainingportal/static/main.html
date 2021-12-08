@@ -28,6 +28,7 @@
 <link href="/public/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="/public/open-iconic/font/css/open-iconic-bootstrap.min.css" rel="stylesheet">
 <link href="/public/highlightjs/styles/darkula.css" rel="stylesheet">
+<link href="/public/css/main.css" rel="stylesheet">
 
 <script>
     window.localStorage.setItem('XSRF_TOKEN','%XSRF_TOKEN%');
@@ -55,15 +56,12 @@
             <div class="collapse navbar-collapse" id="navbarNavDropdown">
                 <ul class="navbar-nav mr-auto">
                     <li class="navbar-item" ng-class="{ active: isActive('/')}"><a class="nav-link" href="#!">Lessons</a></li>
-                    <li class="navbar-item" ng-class="{ active: isActive('/codeBlocks')}"><a class="nav-link" href="#!codeBlocks/inputAllowListing">Code Blocks</a></li>
-                    <li class="navbar-item" ng-class="{ active: isActive('/leaderboard')}"><a class="nav-link" href="#!leaderboard">Team Results</a></li>
+                    <li class="navbar-item" ng-class="{ active: isActive('/leaderboard')}"><a class="nav-link" href="#!leaderboard">Leaderboard</a></li>
                     <li class="navbar-item" ng-class="{ active: isActive('/activity')}"><a class="nav-link" href="#!activity">Activity</a></li>
-                    <li class="navbar-item" ng-class="{ active: isActive('/dashboard')}"><a class="nav-link"href="#!dashboard">Dashboard</a></li>
-                    <li class="navbar-item" ng-class="{ active: isActive('/report')}"><a class="nav-link" href="#!report">Report</a></li>
                 </ul>
             
                 <ul class="navbar-nav">
-                    <li class="navbar-item"><a class="nav-link" href="" data-toggle="modal" data-target="#teamModal">My Team</a></li>
+                    <li class="navbar-item" ng-if="!user.instructor_UN"><a class="nav-link" href="" data-toggle="modal" data-target="#link_instructor">Link Instructor</a></li>
                     <li class="navbar-item" ng-if="user.accountId.indexOf('Local_')===0"><a class="nav-link" href="" data-toggle="modal" data-target="#profileModal">My Profile</a></li>
                     <li class="navbar-item"><a class="nav-link" href="/logout"><span class="oi oi-account-logout"></span> Logout {{fullName}}</a></li>
                 </ul>
@@ -71,9 +69,14 @@
         </nav>
             
 
-            <div class="alert alert-warning" id="teamAlert" ng-if="user.teamId==null || user.teamId==0">
+            <!--<div class="alert alert-warning" id="teamAlert" ng-if="user.teamId==null || user.teamId==0">
                 <a class="close" data-dismiss="alert" aria-label="close">&times;</a>
                 You have not joined a team yet! <a href="#" class="alert-link" data-toggle="modal" data-target="#teamModal">Join an existing team or create a team for yourself.</a>
+            </div>-->
+
+            <div class="alert alert-warning" id="teamAlert" ng-if="user.first_login">
+                <a class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                You have logged with a temporary password. <a href="#" class="alert-link" data-toggle="modal" data-target="#profileModal">Think to change it in your profile.</a>
             </div>
 
             <div class="alert alert-info" id="activityAlert" ng-if="showActivityMessage">
@@ -142,7 +145,6 @@
                 </div>
             </div>
 
-
              <!-- Profile configuration -->
              <div id="profileModal" class="modal fade" role="dialog">
                 <div class="modal-dialog">
@@ -156,7 +158,14 @@
                             </button>
                         </div>
                         <div class="modal-body">
-                        
+                            <div class="form-group">
+                                    <label for="currentusernn">Username :   </label> 
+                                {{user.accountId.replace('Local_', '')}}
+                            </div>
+                            <div class="form-group">
+                                    <label for="currentPassword">Instructor :   {{user.instructor_UN}} </label> 
+                                
+                            </div>
                             <div class="form-group">
                                 <label for="currentPassword">Current Password:</label>
                                 <input type="password" class="form-control" id="currentPassword" autocomplete="off" >
@@ -188,6 +197,44 @@
                     </div>
                 </div>
             </div>
+
+
+            <!-- instructor configuration -->
+            <div id="link_instructor" class="modal fade" role="dialog">
+                <div class="modal-dialog">
+
+                    <!-- instructor configuration UI -->
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h4 class="modal-title">Link Instructor</h4>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label >Instructor Username:</label>
+                                <input type="text" class="form-control" id="instructor_username">
+                            </div>                         
+                        </div>
+                        <div class="alert alert-danger" id="linkErrorMessage" ng-if="isLinkSaveError">
+                                <button type="button" class="close" ng-click="hideLinkSaveError()">&times;</button>
+                                {{linkSaveErrorMessage}}
+                        </div>
+                        <div class="alert alert-success" id="linkSuccessMessage" ng-if="isLinkSaveSuccess">
+                                <button type="button" class="close" ng-click="hideLinkSaveSuccess()">&times;</button>
+                                {{linkSaveSuccessMessage}}
+                        </div>
+                        <div class="modal-footer">
+                            
+                          <!--   <button type="button" class="btn btn-primary" ng-click="linkInstructor()">Link</button> -->
+                            <button type="button" class="btn btn-primary" ng-click="linkInstructor()">Link</button>
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         
     </div> 
     

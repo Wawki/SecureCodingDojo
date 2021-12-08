@@ -73,6 +73,12 @@ function init(){
         for(let level of moduleDefinitions){
             challengeDefinitions.push(level);
             for(let challenge of level.challenges){
+
+                //util.log("Inserting challenge");
+                //util.log(challenge.id);
+                // Insert challenges into database 
+                db.insertChallenge(challenge.id, challenge.score);
+
                 if(!util.isNullOrUndefined(challengeNames[challenge.id])){
                     throw new Error(`Duplicate challenge id: '${challenge.id}'!`);
                 }
@@ -123,11 +129,58 @@ exports.isPermittedModule = async (user, moduleId) => {
 }
 
 /**
- * Get the user level based on the ammount of passed challenges
+ * Get the user (MAX Allowed) level based on the ammount of passed challenges
  */
-exports.getUserLevelForModule = async (user,moduleId) => {
+ exports.getUserLevelForModule = async (user,moduleId) => {
     let moduleDefinitions = getDefinifionsForModule(moduleId);
     let passedChallenges =  await db.getPromise(db.fetchChallengeEntriesForUser,user);
+    let userLevel=-1;
+    var max_allowed_level =  await db.getPromise(db.checkUserMaxProgress,user);
+    util.log(parseInt(max_allowed_level[0].max_progress,10));
+    var max_allowed_level_int = parseInt(max_allowed_level[0].max_progress,10);
+    //if  (max_allowed_level_int == permittedLevel)
+    util.log("================== called here============")
+    util.log("passedChallenges"+passedChallenges.challengeId);
+    util.log("module def"+moduleDefinitions);
+    for(let level of moduleDefinitions){
+        let passCount = 0;
+        for(let chDef of level.challenges) {
+            for(let passedCh of passedChallenges){
+                if(chDef.id===passedCh.challengeId){
+                    passCount++;
+                }
+            }
+        }
+        util.log(level.challenges);
+
+        if(passCount===level.challenges.length){
+            util.log("level.challenges"+level.level)
+            userLevel = level.level;
+        }
+        else{
+            break;
+        }
+        util.log("=================== for ")
+        util.log(userLevel);
+    }
+    util.log("===================")
+    util.log(userLevel);
+
+    if (moduleId=='blackBelt'){
+        util.log("moduleId"+moduleId);
+        if(userLevel >=(max_allowed_level_int-1))
+         return (max_allowed_level_int-1);
+     }
+    return userLevel;
+}
+
+/**
+ * Get the user level based on the ammount of passed challenges
+ */
+ exports.getUserCurrentLevelForModule = async (user,moduleId) => {
+    let moduleDefinitions = getDefinifionsForModule(moduleId);
+    let passedChallenges =  await db.getPromise(db.fetchChallengeEntriesForUser,user);
+    //console.log(passedChallenges);
     let userLevel=-1;
     for(let level of moduleDefinitions){
         let passCount = 0;
@@ -145,6 +198,7 @@ exports.getUserLevelForModule = async (user,moduleId) => {
             break;
         }
     }
+    //console.log(userLevel);
     return userLevel;
 }
 
@@ -173,34 +227,42 @@ exports.getPermittedChallengesForUser = async (user, moduleId) => {
  * @param {Object} user The session user object
  * @param {Array} moduleIds The lesson module ids
  */
-exports.getChallengeDefinitionsForUser = async (user, moduleId) => {
+ exports.getChallengeDefinitionsForUser = async (user, moduleId) => {
     var returnChallenges = [];
     
     if(util.isNullOrUndefined(moduleId)) return [];    
     if(util.isNullOrUndefined(modules[moduleId])) return [];
 
+    var permittedLevel = await exports.getUserLevelForModule(user, moduleId) + 1;
+
     var modulePath = getModulePath(moduleId);
     var moduleDefinitions = getDefinifionsForModule(moduleId);
 
     for(let level of moduleDefinitions){
-        for(let challenge of level.challenges) {
-            //update the play link if it exists
-            if (!util.isNullOrUndefined(config.playLinks)) {
-                var playLink = config.playLinks[challenge.id];
-                if (!util.isNullOrUndefined(playLink)) {
-                    challenge.playLink = playLink;
-                }
-                var description = challenge.description;
-                if(!util.isNullOrUndefined(description) && description.indexOf(modulePath) === -1){
-                    challenge.description = path.join(modulePath, description);
+        if (permittedLevel >= level.level) {
+            for(let challenge of level.challenges) {
+                //update the play link if it exists
+                if (!util.isNullOrUndefined(config.playLinks)) {
+                    var playLink = config.playLinks[challenge.id];
+                    if (!util.isNullOrUndefined(playLink)) {
+                        challenge.playLink = playLink;
+                    }
+                    var description = challenge.description;
+                    if(!util.isNullOrUndefined(description) && description.indexOf(modulePath) === -1){
+                        challenge.description = path.join(modulePath, description);
+                    }
                 }
             }
+            returnChallenges.push(level);
         }
-        returnChallenges.push(level);
+        else {
+            returnChallenges.push({ "level": level.level, "name": level.name, "challenges": [] });
+        }
     }
         
     return returnChallenges;
 }
+
 
 
 
@@ -439,6 +501,7 @@ module.exports.apiChallengeCode = async (req) => {
  */
 module.exports.insertChallengeEntry = async (user,curChallengeObj, moduleId) => {
     await db.getPromise(db.insertChallengeEntry, [user.id,curChallengeObj.id]);
+    //await db.getPromise(db.insertChallengeEntry, [user.id,curChallengeObj.id,100]);
     //issue badgr badge if enabled
     module.exports.badgrCall(curChallengeObj.badgrInfo,user);
     let isModuleComplete = await module.exports.verifyModuleCompletion(user,moduleId);

@@ -33,6 +33,9 @@ app.config(function($routeProvider) {
     }).when("/solution/:challengeId", {
         templateUrl : "static/solution.html",
         controller: "solutionCtrl"
+    }).when("/students", {
+        templateUrl : "static/students.html",
+        controller: "studentsCtrl"
     });
 });
 
@@ -128,10 +131,27 @@ app.controller('mainCtrl', ['$rootScope','$http','$location','dataSvc', function
         $scope.isTeamSaveSuccess = false;
     }
 
+        //hide a team save error
+    $scope.hideLinkSaveError = function() {
+            $scope.isLinkSaveError = false;
+        }
+    
+        //hide a team save success message
+    $scope.hideLinkSaveSuccess = function() {
+            $scope.isLinkSaveSuccess = false;
+        }
+    
     //hide a team save success message
     $scope.hideMessages = function() {
         $scope.hideTeamSaveError();
         $scope.hideTeamSaveSuccess(); 
+    }
+
+    //hide a link save success message
+    $scope.hideLinkMessages = function() {
+        $scope.hideLinkSaveError();
+        $scope.hideLinkSaveSuccess();
+
     }
 
     //delete current owned team
@@ -284,6 +304,7 @@ app.controller('mainCtrl', ['$rootScope','$http','$location','dataSvc', function
         var profileInfo = {};
         profileInfo.curPassword = currentPassword.value.trim();
         profileInfo.newPassword = newPassword.value.trim();
+        profileInfo.first_login = 0;
         
         if(vfyPassword.value.trim()!==profileInfo.newPassword){
             $scope.isProfileSaveError = true;
@@ -311,6 +332,38 @@ app.controller('mainCtrl', ['$rootScope','$http','$location','dataSvc', function
         });
     }
 
+    $scope.linkInstructor = function(){
+        $scope.isLinkSaveError = false;
+        $scope.isLinkSaveSuccess = false;
+        $scope.linkSaveErrorMessage = "";
+        instructorInfo_username = instructor_username.value;
+        
+        if(instructor_username==""){
+            //no team was selected show a message
+            $scope.isLinkSaveError = true;
+            $scope.linkSaveErrorMessage = "No username was entered"
+        }
+        $http.post("/api/instructor_link",{"instructorId": instructorInfo_username},window.getAjaxOpts())
+        .then(function(response) {
+            if(response !== null && response.data !== null){
+                if(response.data.status == 200){
+                    $scope.isLinkSaveSuccess = true;
+                    $scope.linkSaveSuccessMessage = "Linked successfully.";
+                }
+                else{
+                    $scope.isLinkSaveError = true;
+                    $scope.linkSaveErrorMessage = response.data.statusMessage;
+                }
+
+            }
+        },function(errorResponse){
+            $scope.isLinkSaveError = true;
+            $scope.linkSaveErrorMessage = "A http error has occurred.";
+            
+        });
+    }
+
+
 
     $scope.loadData = function(){
         $http.get("/api/user",window.getAjaxOpts())
@@ -321,7 +374,7 @@ app.controller('mainCtrl', ['$rootScope','$http','$location','dataSvc', function
                 $scope.user = user;
                 $scope.fullName = user.givenName + ' ' + user.familyName;
                 $scope.firstName = user.givenName;
-
+                $scope.role__=user.role;
                 $scope.fetchTeams();
                         
                 //do the first activity heartbeat

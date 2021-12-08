@@ -1,36 +1,40 @@
 <div class="container" ng-app="challengesApp" ng-controller="leaderboardCtrl" ng-init="init()">   
-    <form autocomplete="off">
-        <label for="teamListChoice">Select a team to see member status: </label>
-        <select id="teamListChoice" name="teamListChoice"  ng-model="teamListChoice" class="form-select" aria-label="Team selector" ng-change="onTeamChange()">
-            <option ng-repeat="teamInfo in teamStatList" value="{{$index}}">{{teamInfo.teamName}} ({{teamInfo.playerCount}})</option>
-        </select>
-        <label for="teamListTimeRange">Select a time range:</label>
-        <select id="teamListTimeRange" ng-model="teamListTimeRange" name="teamListTimeRange" class="form-select" aria-label="Time range selector" ng-change="onTeamChange()">
-            <option value="-1" selected>All Time</option>
-            <option value="7">Last Week</option>
-            <option value="30">Last 30 Days</option>
-        </select>
-    </form>
-    <br>
-    <br>
-    <table class="table">
-        <thead>
-            <tr>
-                <th scope="col" ng-repeat="module in lbModules">{{module.name}} ({{module.percentageCompleted}}%)</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td scope="col" ng-repeat="module in lbModules">
-                    <ol class="small">
-                        <li ng-repeat="user in module.members">
-                            {{user.givenName}} {{user.familyName}}
-                        </li>
-                    </ol>
-                </th>
-            </tr>
-        </tbody>
-    </table>
+    <div id="page">
+        <div id="badData"></div>
+        <!--<div id="whereistand-div"
+				style="position: fixed; left: 30px; display: none; border-bottom: 3px solid #a878ef; background: #d4d4d4; padding: 5px 5px; border-radius: 5px">
+				<input type="checkbox" id="whereistand-chk"
+					onChange="whereistandToggle()">Where do I stand?
+			</div>-->
+        <ul id="leaderboard" class="leaderboard">
+            <li class="scoreLine" ng-repeat="user in users">
+                <div id="userbar" class="scoreBar" ng-style="{'width': '{{user.score * 100 / highScore}}%'}">
+                    <div id="userplace" class="place">
+                        <h3 style="display:none;" id="user"><!--{{user.place}}--></h3>
+                        <!--getGetOrdinal(o[i].place) : -->
+                    </div>
+                    <div class="scoreName" >{{user.givenName}} {{user.familyName}}
+                        <div id="goldMedals" class="medalContainer">
+                            <div ng-style="{{user.goldMedalCount > 0}} && {'display': 'inline'} || {'display': 'none'}">
+                                <div class="goldMedalAmountBubble">{{user.goldMedalCount}}</div>
+                            </div>
+                        </div>
+                        <div id="silverMedals" class="medalContainer">
+                            <div ng-style="{{user.silverMedalCount > 0}} && {'display': 'inline'} || {'display': 'none'}">
+                                <div class="silverMedalAmountBubble">{{user.silverMedalCount}}</div>
+                            </div>
+                        </div>
+                        <div id="bronzeMedals" class="medalContainer">
+                            <div ng-style="{{user.bronzeMedalCount > 0}} && {'display': 'inline'} || {'display': 'none'}">
+                                <div class="bronzeMedalAmountBubble">{{user.bronzeMedalCount}}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="scoreNumber" id="userscore">{{user.score}}</div>
+                </div>
+            </li>
+        </ul>
+    </div>
     <br>
     <br>
 </div>

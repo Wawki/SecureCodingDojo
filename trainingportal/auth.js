@@ -156,17 +156,26 @@ let registerLocalUser = function(req,res){
         return util.apiResponse(req, res, 400, "Invalid captcha.");
     }
 
-    var localUser = {"givenName":givenName,"familyName":familyName};
+    var role = newUser.role;
+    if(util.isNullOrUndefined(role) || validator.matches(role,/^[A-Z'\-\s]+$/i)===false){
+        return util.apiResponse(req, res, 400, "Invalid role selection.");
+    }
 
-    createUpdateUser(req, res, username, localUser, password);
+    var user_max_progress = 1;
+    var user_solution_disabled = "disabled";
+
+    var localUser = {"givenName":givenName,"familyName":familyName,"role":role,"user_max_progress":user_max_progress,"user_solution_disabled":user_solution_disabled};
+
+    createUpdateUser(req, res, username, localUser, password, true);
     
 };
 
 
-let createUpdateUserInternal = (username, localUser, password) => {
+let createUpdateUserInternal = (username, localUser, password, first_login) => {
   //create user
   localUser.passSalt = crypto.randomBytes(16).toString('base64').toString();
   localUser.passHash = util.hashPassword(password,localUser.passSalt);
+  localUser.first_login = first_login;
 
   localUsers[username] = localUser;
   //save to disk
@@ -174,17 +183,17 @@ let createUpdateUserInternal = (username, localUser, password) => {
   fs.writeFileSync(localUsersPath, json, 'utf8');
 };
 
-let createUpdateUser = function(req, res, username, localUser, password){
+let createUpdateUser = function(req, res, username, localUser, password, first_login){
     
-    var isStrongPass = validator.matches(password,/.{16,}/)==true &&
+    var isStrongPass = validator.matches(password,/.{8,}/)==true &&
     validator.matches(password,/[a-z]/)==true;
 
     if(!isStrongPass){
-        return util.apiResponse(req, res, 400, "Select a password that is made up from three or more words (16 or more characters)");
+        return util.apiResponse(req, res, 400, "Choose a password that is made up from at least 8 characters");
     }
 
-    createUpdateUserInternal(username, localUser, password);
-  
+    createUpdateUserInternal(username, localUser, password, first_login);
+
     return util.apiResponse(req, res, 200, "User created/modified.");
 };
 
@@ -257,12 +266,12 @@ let updateLocalUser = function(req,res){
         return util.apiResponse(req, res, 400, "Current password doesn't match or user does not exist.");
     }
 
-    createUpdateUser(req, res, username, localUser, newPassword);
+    createUpdateUser(req, res, username, localUser, newPassword, false);
 
 }
 
 
-let processAuthCallback = async(profileId, givenName, familyName, email, cb) => {
+let processAuthCallback = async(profileId, givenName, familyName, email, role, user_max_progress, user_solution_disabled, cb) => {
     //if allowed account pattern or an allowed list of accounts are not configured all users are allowed
     var isAllowed = util.isNullOrUndefined(config.allowedAccountPattern) && allowedAccounts===null;
     //check the allowed pattern if defined
@@ -306,8 +315,13 @@ let processAuthCallback = async(profileId, givenName, familyName, email, cb) => 
                 familyName: familyName, 
                 givenName: givenName,
                 teamId: teamId,
+                role:role,
+                user_max_progress:user_max_progress,
+                user_solution_disabled:user_solution_disabled,
+                instructor_UN:null,
                 level:0
             };
+            
             await db.getPromise(db.insertUser, user);
             user = await db.getPromise(db.getUser, profileId);
             if(user){
@@ -331,7 +345,7 @@ let getLocalStrategy = function () {
     return new LocalStrategy((username, password, cb) => {
         var user = verifyLocalUserPassword(username, password)
         if(user!==null){
-            return processAuthCallback("Local_"+username, user.givenName, user.familyName, null, cb);
+            return processAuthCallback("Local_"+username, user.givenName, user.familyName, null, user.role, user.user_max_progress, user.user_solution_disabled, cb);
         }
         
         return cb(null,false);

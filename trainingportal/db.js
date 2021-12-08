@@ -159,6 +159,7 @@ exports.getPromise = function(dbFunc, params){
         case 0: dbFunc(reject, resolve); break;
         case 1: dbFunc(params[0], reject, resolve);break;
         case 2: dbFunc(params[0], params[1], reject, resolve);break;
+        case 3: dbFunc(params[0], params[1], params[2], reject, resolve);break;
       }
     });
   return promise;
@@ -197,7 +198,7 @@ exports.init = async () => {
       util.log("Database tables created");
     } catch (error) {
       util.log("Database setup failed");
-      console.log(err);
+      console.log(error);
     }
     
   }
@@ -257,13 +258,36 @@ exports.init = async () => {
 //Creates a user in the database
 exports.insertUser = function(user,errCb,doneCb){
   var con = getConn();
-  var sql = "INSERT INTO users (id, accountId, teamId, familyName, givenName) VALUES (null, ?, ?, ?, ?)";
+  var sql = "INSERT INTO users (id, accountId, teamId, familyName, givenName, role, instructor_UN, max_progress, solution_disabled) VALUES (null, ?, ?, ?, ?, ?, null, ?, ?)";
   
-  con.query(sql, [user.accountId, user.teamId, user.familyName, user.givenName], function (err, result) {
+  con.query(sql, [user.accountId, user.teamId, user.familyName, user.givenName ,user.role, user.user_max_progress,user.user_solution_disabled], function (err, result) {
     if (err) handleErr(errCb,err);
     else handleDone(doneCb,result);
   });
 };
+
+//update a student in the database
+exports.updateStudent = function(user,errCb,doneCb){
+  var con = getConn();
+  var sql = "UPDATE users SET solution_disabled = ?, max_progress= ?  WHERE id = ? AND accountId = ? AND instructor_UN = ?";
+  con.query(sql, [user.solution_disabled, user.max_progress, user.id, user.accountId, user.instructor_UN], function (err, result) {
+    if (err) handleErr(errCb,err);
+    else handleDone(doneCb,result);
+  });
+ 
+};
+
+//Creates a user in the database
+exports.linkInstructorUserName = function(user,errCb,doneCb){
+  var con = getConn();
+  var sql = "UPDATE users SET accountId = ?, teamId = ?, familyName = ?, givenName = ?,instructor_UN = ? WHERE id = ?";
+  con.query(sql, [user.accountId, user.teamId, user.familyName, user.givenName, user.instructor_UN, user.id], function (err, result) {
+    if (err) handleErr(errCb,err);
+    else handleDone(doneCb,result);
+  });
+ 
+};
+
 
 //gets the database schema version
 exports.getVersion = function(errCb,doneCb){
@@ -305,6 +329,15 @@ exports.getUserById = async (userId) => {
 exports.deleteUser = function(accountId,errCb,doneCb){
   var con = getConn();
   var sql = "DELETE FROM users WHERE accountId = ? ";
+  con.query(sql, [accountId], function (err, result) {
+    if(err) handleErr(errCb,err);
+    else handleDone(doneCb,result);
+  });
+};
+
+exports.getUserByIdd = function(accountId,errCb,doneCb){
+  var con = getConn();
+  var sql = "select * FROM users WHERE accountId = ? ";
   con.query(sql, [accountId], function (err, result) {
     if(err) handleErr(errCb,err);
     else handleDone(doneCb,result);
@@ -388,6 +421,53 @@ exports.fetchTeams = function(errCb,doneCb){
     }
   });
 };
+
+//fetches the list of instructors from the database
+exports.fetchInstructors = function(errCb,doneCb){
+  var con = getConn();
+  var sql = "SELECT * FROM users WHERE role='instructor' ";
+  con.query(sql, function (err, result) {
+      if(err) handleErr(errCb,err);
+      else{
+        handleDone(doneCb,result);
+    }
+  });
+};
+
+//fetches the list of students from the database
+exports.fetchStudents = function(errCb,doneCb){
+  var con = getConn();
+  var sql = "SELECT * FROM users WHERE role='student' ";
+  con.query(sql, function (err, result) {
+      if(err) handleErr(errCb,err);
+      else{
+        handleDone(doneCb,result);
+    }
+  });
+};
+
+//check solution_disabled properties of a user in the database (same usage of db.updateUser)
+exports.checkUserSolutionDisabled = function(user,errCb,doneCb){
+  //console.log(user.id)
+  var con = getConn();
+  var sql = "SELECT solution_disabled FROM users WHERE id = ? and role='student'";
+  con.query(sql, [user.id], function (err, result) {
+    if(err) handleErr(errCb,err);
+    else handleDone(doneCb,result);
+  });
+};
+
+//check solution_disabled properties of a user in the database (same usage of db.updateUser)
+exports.checkUserMaxProgress= function(user,errCb,doneCb){
+  //console.log(user.id)
+  var con = getConn();
+  var sql = "SELECT max_progress FROM users WHERE id = ? and role='student'";
+  con.query(sql, [user.id], function (err, result) {
+    if(err) handleErr(errCb,err);
+    else handleDone(doneCb,result);
+  });
+};
+
 
 //fetches a team and its members from the database by its name (unique)
 exports.getTeamWithMembersByName = function(name,errCb,doneCb){
@@ -485,6 +565,23 @@ exports.getTeamMembersByBadges = async (teamId, days) => {
 };
 
 /**
+ * Gets a team members with completed challenges
+ */ 
+exports.getTeamMembersByScore = async (teamId) => {
+  let con = getConn();
+  let sql = "SELECT users.score, users.goldMedalCount, users.silverMedalCount, users.bronzeMedalCount, users.givenName, users.familyName FROM users";
+  let args = [];
+  if(teamId !== null && teamId !== "*"){
+    sql+=" WHERE users.teamId = ?";
+    args = [teamId];
+  }
+  sql+=" order by users.score desc";
+  let result = await con.queryPromise(sql,args);
+
+  return result;
+};
+
+/**
  * Gets a list of users for a module id
  */
 exports.getAllUsersForBadge = async (moduleId) => {
@@ -498,17 +595,90 @@ exports.getAllUsersForBadge = async (moduleId) => {
 //Creates a user in the database
 exports.insertChallengeEntry = function(userId, challengeId, errCb, doneCb){
   var con = getConn();
-  var sql = "DELETE FROM challengeEntries WHERE userId = ? and challengeId = ?";
-  con.query(sql, [userId,challengeId], function (err, result) {
+
+  var sqlChallenge = "SELECT * FROM challenges WHERE challengeId = ?";
+  var sqlUser = "SELECT * FROM users WHERE id = ?";
+
+  var goldMedalAvailable = 0;
+  var silverMedalAvailable = 0;
+  var bronzeMedalAvailable = 0;
+
+  var goldMedalCount = 0;
+  var silverMedalCount = 0;
+  var bronzeMedalCount = 0;
+  var score = 0;
+  var bonus = 0;
+
+  con.query(sqlUser, [userId], function (err, result) {
     if (err) handleErr(errCb,err);
-    else{
-      var timeStamp = Date().toString();
-      var sql = "INSERT INTO challengeEntries (id, userId, challengeId, timestamp) VALUES (null, ?, ?, ?)";
-      con.query(sql, [userId, challengeId, timeStamp], function (err, result) {
-        if (err) handleErr(errCb,err);
-        else handleDone(doneCb,result);
-      });
+    else {
+      user = result[0];
+      score += user.score;
+      goldMedalCount = user.goldMedalCount;
+      silverMedalCount = user.silverMedalCount;
+      bronzeMedalCount = user.bronzeMedalCount;
     }
+  });
+
+  con.query(sqlChallenge, [challengeId], function (err, result) {
+    if (err) handleErr(errCb,err);
+    else {
+      if(result.length > 0){
+        challenge = result[0];
+        score += challenge.score;
+        bonus = challenge.bonus;
+        score += bonus;
+        bonus -= 1;
+        goldMedalAvailable = challenge.goldMedalAvailable;
+        silverMedalAvailable = challenge.silverMedalAvailable;
+        bronzeMedalAvailable = challenge.bronzeMedalAvailable;
+
+        if(goldMedalAvailable > 0){
+          util.log("Gold medal available !");
+          goldMedalCount += 1;
+          // Update challenge
+          var sql = "UPDATE challenges SET goldMedalAvailable = ?, bonus = ? WHERE challengeId = ?";
+          con.query(sql, [false, bonus, challengeId], function (err, result) {
+            if (err) handleErr(errCb,err);
+            else handleDone(doneCb,result);
+          });
+        } else if(silverMedalAvailable > 0){
+          silverMedalCount += 1;
+          // Update challenge
+          var sql = "UPDATE challenges SET silverMedalAvailable = ?, bonus = ? WHERE challengeId = ?";
+          con.query(sql, [false, bonus, challengeId], function (err, result) {
+            if (err) handleErr(errCb,err);
+            else handleDone(doneCb,result);
+          });
+        } else if(bronzeMedalAvailable > 0){
+          bronzeMedalCount += 1;
+          // Update challenge
+          var sql = "UPDATE challenges SET bronzeMedalAvailable = ?, bonus = ? WHERE challengeId = ?";
+          con.query(sql, [false, bonus, challengeId], function (err, result) {
+            if (err) handleErr(errCb,err);
+            else handleDone(doneCb,result);
+          });
+        }
+      
+        con.query(sql, [userId,challengeId], function (err, result) {
+          if (err) handleErr(errCb,err);
+          else{
+            var sql = "UPDATE users SET score = ?, goldMedalCount = ?, silverMedalCount = ?, bronzeMedalCount = ? WHERE id = ?";
+            con.query(sql, [score, goldMedalCount, silverMedalCount, bronzeMedalCount, userId], function (err, result) {
+              if (err) handleErr(errCb,err);
+              else handleDone(doneCb,result);
+            });
+          }
+        });
+      }
+    }
+  });
+
+  var timeStamp = Date().toString();
+  sql = "INSERT INTO challengeEntries (id, userId, challengeId, timestamp) VALUES (null, ?, ?, ?)";
+  con.query(sql, [userId, challengeId, timeStamp], function (err, result) {
+    if (err) handleErr(errCb,err);
+    else handleDone(doneCb,result);
   });
 };
 
@@ -526,6 +696,28 @@ exports.insertBadge = async (userId, moduleId) => {
   await con.queryPromise(sql,[userId, moduleId, timeStamp]);
 };
 
+/**
+ * Inserts a challenge
+ */
+exports.insertChallenge = function(challengeId, score, errCb,doneCb) {
+  var con = getConn();
+
+  var sql = "DELETE FROM challenges WHERE challengeId = ?"; //in the unlikely situation they exist replace badges for the same module
+  con.query(sql,[challengeId], function (err, result) {
+    if(err) handleErr(errCb,err);
+    else{
+      handleDone(doneCb,result);
+    }
+  });
+
+  sql = "INSERT INTO challenges (challengeId, score) VALUES (?, ?)";
+  con.query(sql,[challengeId, score], function (err, result) {
+    if(err) handleErr(errCb,err);
+    else{
+      handleDone(doneCb,result);
+    }
+  });
+}
 
 /**
  * Returns the badges for the specified user
@@ -550,7 +742,39 @@ exports.fetchChallengeEntriesForUser = function(user,errCb,doneCb){
   });
 };
 
+/**
+ * Fetches the list of challenge entries in descending order, practically the activity
+ * @param {*} errCb 
+ * @param {*} doneCb 
+ */
+ exports.fetchMystudents = function(query,instructor_username,errCb,doneCb){
+  var con = getConn();
+  sql = "SELECT * FROM users WHERE role='student' AND instructor_UN = ?";
+  args = [instructor_username];
+  con.query(sql, args, function (err, result) {
+    if(err) handleErr(errCb,err);
+    else{
+      handleDone(doneCb,result);
+    }
+  });
+};
 
+/**
+ * Fetches the list ...
+ * @param {*} errCb 
+ * @param {*} doneCb 
+ */
+ exports.fetchMystudents = function(query,instructor_username,errCb,doneCb){
+  var con = getConn();
+  sql = "SELECT * FROM users WHERE role='student' AND instructor_UN = ?";
+  args = [instructor_username];
+  con.query(sql, args, function (err, result) {
+    if(err) handleErr(errCb,err);
+    else{
+      handleDone(doneCb,result);
+    }
+  });
+};
 
 /**
  * Fetches the list of challenge entries in descending order, practically the activity

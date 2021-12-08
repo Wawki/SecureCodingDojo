@@ -246,13 +246,13 @@
                 "codeBlockIds":["checkBoundaries","safeMemoryManagement","inputAllowListing"]
             },
             {
-                "id":"cwe502",
-                "name":"FILL ME", 
-                "playLink":"/cwe502.jsp",
-                "description": "cwe502.html",
-                "attackGram":"deserialization.png",
-                "solution":"cwe502.sol.md",
-                "codeBlockIds":["enforceSafeDeserialization"]
+                "id":"cwe134",
+                "name":"Use of Externally-Controlled Format String", 
+                "playLink":"/cwe134.jsp",
+                "description": "cwe134.html",
+                "attackGram":"formatstring.png",
+                "solution":"cwe134.sol.md",
+                "codeBlockIds":["safeMemoryManagement","inputAllowListing"]
             },
             {
                 "id":"quiz",

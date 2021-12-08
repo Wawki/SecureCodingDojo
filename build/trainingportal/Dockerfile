@@ -1,6 +1,6 @@
 FROM node:alpine
 
-RUN apk --no-cache add --update g++ gcc libgcc libstdc++ linux-headers make jpeg-dev cairo-dev giflib-dev pango-dev
+RUN apk --no-cache add --update git g++ gcc libgcc libstdc++ linux-headers make jpeg-dev cairo-dev giflib-dev pango-dev build-base
 RUN apk --no-cache add --update python3 && ln -sf python3 /usr/bin/python
 RUN apk --no-cache add msttcorefonts-installer fontconfig && \
     update-ms-fonts && \

@@ -1,5 +1,4 @@
-
-<div class="container" ng-app="challengesApp" ng-controller="trainingModulesCtrl" ng-init="init()">
+<div class="container" ng-app="challengesApp" ng-controller="trainingModulesCtrl" ng-init="init()" ng-if="role__==='student'">
     <h3>Hi {{firstName}}! Welcome to the Secure Coding Dojo!</h3>
     <p>Pick a training module below to start.</p>
     <div class="row">
@@ -7,13 +6,12 @@
             
                 <div class="card" >
                     <div class="card-header">
+                        <span class="oi oi-circle-check" ng-if="isModuleComplete(key)"></span>
                         {{value.name}}
                     </div>
                     <div class="card-body">
                         <h5 class="card-title">{{value.summary}}</h5>
                         <p class="card-text">{{value.description}}</p>
-                        <p class="card-text text-muted" ng-if="value.description2"><small>{{value.description2}}</small></p>
-
                     </div>
                     <div class="card-footer">
                         <small class="text-muted" ng-if="value.requiredModules.length>0">
@@ -25,8 +23,65 @@
                         </a>
                         <a ng-href="#!challenges/{{key}}" class="btn btn-primary float-right mx-1" ng-class="{ disabled: !isModuleEnabled(key) }">Load</a>
 
-                    </div>
-                </div>
+<div class="container" ng-app="challengesApp" ng-controller="trainingModulesCtrl" ng-init="init()" ng-if="role__==='instructor'" >
+    <h3>Hi professor! Welcome to the Secure Coding Dojo!</h3>
+    <br>
+    <div class="container-fluid">
+        <p> </p>
+        <p>The table below lists the students linked with you.</p>
+
+  
+                        <div class="alert alert-danger" id="UpdateErrorMessage" ng-if="isUpdateSaveError">
+                                <button type="button" class="close" ng-click="hideUpdateSaveError()">&times;</button>
+                                {{UpdateSaveErrorMessage}}
+                        </div>
+                        <div class="alert alert-success" id="UpdateSuccessMessage" ng-if="isUpdateSaveSuccess">
+                                <button type="button" class="close" ng-click="hideUpdateSaveSuccess()">&times;</button>
+                                {{UpdateSaveSuccessMessage}}
+                        </div>
+
+                        
+        <table class="table table-striped" id="myTable">
+            <thead>
+                <tr>
+                    <th>Student Name</th>
+                    <th>User Name</th>
+                    <th>Solution Button</th>
+                    <th>Current Belt</th>
+                    <th>Max Allowed Belt</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr ng-repeat="studentEntry in studentsList" >                   
+                    <td>{{studentEntry.givenName}} {{studentEntry.familyName}}</td>
+                    <td>{{studentEntry.accountId.replace('Local_','')}}</td>
+                    <td>
+                        <select class="form-select"  name="sol_button_disabled" id="sol_button_disabled" > 
+                            <option value='disabled' ng-selected="studentEntry.solution_disabled=='disabled' ">Disabled</option>
+                            <option value='enabled' ng-selected="studentEntry.solution_disabled=='enabled' ">Enabled</option>
+                           
+                        </select>
+                    </td>
+                    <td>{{beltsdeff[studentEntry.currentLevel]}}</td>
+
+                    <td>
+                        <select class="form-select"  name="challengelevel_limit" id="challengelevel_limit"> 
+                            <option value=1 ng-selected="studentEntry.max_progress==1" >Yellow Belt</option>
+                            <option value=2 ng-selected="studentEntry.max_progress==2" >Orange Belt</option>
+                            <option value=3 ng-selected="studentEntry.max_progress==3" >Green Belt</option>
+                            <option value=4 ng-selected="studentEntry.max_progress==4" >Purple Belt </option>
+                            <option value=5 ng-selected="studentEntry.max_progress==5" >Blue Belt </option>
+                            <option value=6 ng-selected="studentEntry.max_progress==6" >Brown Belt </option>
+                            <option value=7 ng-selected="studentEntry.max_progress==7" >Black Belt </option>
+                        </select>
+                    </td>
+                    <td><button  type="button" class="btn btn-secondary" ng-click="updateStudent($index)">Update</button> </td>
+                </tr>
+            </tbody>
+        </table>
+        <br>
+        <br>
     </div>
-    </div>
+    
 </div>
